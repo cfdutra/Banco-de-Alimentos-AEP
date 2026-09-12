@@ -127,3 +127,4 @@ erDiagram
 | 11/09 | Entrega da 1ª etapa | Carlos Felipe Duta |
 | A definir | Implementação do CRUD em Java + conexão MySQL (2ª entrega) | Carlos Felipe Duta |
 | A definir | Testes finais e entrega do código-fonte (2ª entrega) | Carlos Felipe Duta |
+
