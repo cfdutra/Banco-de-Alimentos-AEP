@@ -49,7 +49,6 @@ validades e indica o que deve ser distribuído primeiro, reduzindo o desperdíci
 ```
 Banco-de-Alimentos-AEP/
 |-- database/script-criacao.sql      # criação do banco e das tabelas
-|-- docs/                            # PDF da 1ª entrega e diagramas
 |-- src/main/java/bancoalimentos/
 |   |-- model/   Pessoa (abstrata), Doador, DoacaoAlimento
 |   |-- dao/     ConexaoDB, DoadorDAO, DoacaoAlimentoDAO
