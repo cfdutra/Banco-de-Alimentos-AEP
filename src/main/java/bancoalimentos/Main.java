@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-/** Menu de console interativo do Sistema de Banco de Alimentos. */
+
 public class Main {
 
     // ---------- Estilo ----------
@@ -23,8 +23,8 @@ public class Main {
     private static final String CINZA    = "\u001B[90m";
     private static final String VERMELHO = "\u001B[31m";
     private static final String VERDE    = "\u001B[32m";
-    private static final String AMARELO  = "\u001B[33m";
-    private static final String CIANO    = "\u001B[36m";
+    private static final String AMARELO  = "\u001B[38;5;172m";
+    private static final String AZUL    = "\u001B[38;5;26m";
     private static final int LARGURA = 60;
 
     private static final DateTimeFormatter FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -33,28 +33,30 @@ public class Main {
     private static final DoacaoAlimentoDAO doacaoDAO = new DoacaoAlimentoDAO();
 
 
+
     public static void main(String[] args) {
         boasVindas();
 
-        int opcao;
+        int opcao = -1;
 
         do {
             limparTela();
             exibirMenu();
 
-            opcao = lerInt(CIANO + "  ❯ " + RESET + "Escolha uma opção: ");
-
             boolean voltar = false;
 
-            if (opcao != 0) {
-                limparTela();
-            }
-
             try {
+                opcao = lerInt(AZUL + "  ❯ " + RESET + "Escolha uma opção: ");
+
+                if (opcao != 0) {
+                    limparTela();
+                }
+
                 executar(opcao);
 
             } catch (VoltarMenuException e) {
                 voltar = true;
+                opcao = -1;
 
             } catch (IllegalArgumentException | IllegalStateException e) {
                 aviso(e.getMessage());
@@ -63,7 +65,6 @@ public class Main {
                 erro("Erro de banco de dados: " + e.getMessage());
             }
 
-            // Só pausa quando não estiver voltando ao menu.
             if (opcao != 0 && !voltar) {
                 pausar();
             }
@@ -74,12 +75,12 @@ public class Main {
         sucesso("Até logo! Obrigado por ajudar a combater a fome. ♥");
     }
 
+
     // ---------- Menu ----------
 
     private static void exibirMenu() {
-        String data = LocalDate.now().format(FORMATO);
 
-        System.out.println(CIANO + "╔" + "═".repeat(LARGURA) + "╗" + RESET);
+        System.out.println(AZUL + "╔" + "═".repeat(LARGURA) + "╗" + RESET);
 
         System.out.println(borda(CINZA + " Digite VOLTAR a qualquer momento para retornar ao Menu" + RESET));
         secao("DOADORES");
@@ -96,12 +97,12 @@ public class Main {
 
         secao("RELATÓRIOS");
         item("9", "Alimentos próximos do vencimento (até 7 dias)");
-        item("10", "Listar alimentos por data de validade");
+        item("10", "Listar alimentos");
         item("11", "Total de alimentos registrados (kg)");
 
-        System.out.println(CIANO + "╟" + "─".repeat(LARGURA) + "╢" + RESET);
+        System.out.println(AZUL + "╟" + "─".repeat(LARGURA) + "╢" + RESET);
         System.out.println(borda(VERMELHO + NEGRITO + "0  " + RESET + "›  Sair"));
-        System.out.println(CIANO + "╚" + "═".repeat(LARGURA) + "╝" + RESET);
+        System.out.println(AZUL + "╚" + "═".repeat(LARGURA) + "╝" + RESET);
     }
 
     private static void executar(int opcao) throws SQLException {
@@ -166,8 +167,6 @@ public class Main {
                 new int[]{4, 18, 16, 14, 24}, linhas);
         System.out.println(CINZA + "  " + doadores.size() + " doador(es)." + RESET);
     }
-
-
 
     private static void atualizarDoador() throws SQLException {
         titulo("Atualizar doador");
@@ -245,8 +244,6 @@ public class Main {
         sucesso("Doador atualizado com sucesso!");
     }
 
-
-
     private static void removerDoador() throws SQLException {
         titulo("Remover doador");
         int id = lerInt("ID do doador: ");
@@ -263,6 +260,7 @@ public class Main {
         doadorDAO.excluir(id);
         sucesso("Doador removido.");
     }
+
 
     // ---------- Doações ----------
 
@@ -283,8 +281,11 @@ public class Main {
         sucesso("Doação registrada!");
         System.out.println("  " + doacao);
         long dias = ChronoUnit.DAYS.between(LocalDate.now(), validade);
-        if (dias <= DoacaoAlimento.DIAS_ALERTA_VENCIMENTO) {
-            aviso("Atenção: este alimento vence em " + Math.max(dias, 0) + " dia(s)!");
+
+        if (dias < 0) {
+            aviso("Atenção: este alimento já está vencido!");
+        } else if (dias <= DoacaoAlimento.DIAS_ALERTA_VENCIMENTO) {
+            aviso("Atenção: este alimento vence em " + dias + " dia(s)!");
         }
     }
 
@@ -306,7 +307,6 @@ public class Main {
                 + String.format("%.2f kg", doador.getTotalDoadoKg()) + RESET);
     }
 
-
     private static void alterarDoacao() throws SQLException {
         titulo("Alterar doação");
 
@@ -319,43 +319,64 @@ public class Main {
             return;
         }
 
-        while (true) {
-            info("Dados atuais: " + doacao);
+        info("Dados atuais: " + doacao);
 
-            System.out.println("\n  O que deseja atualizar?");
-            System.out.println("  1 - Tipo de alimento");
-            System.out.println("  2 - Quantidade (kg)");
-            System.out.println("  3 - Data de validade");
-            System.out.println("  0 - Finalizar alterações");
+        System.out.println("\n  Selecione os campos que deseja atualizar:");
+        System.out.println("  1 - Tipo de alimento");
+        System.out.println("  2 - Quantidade (kg)");
+        System.out.println("  3 - Data de validade");
 
-            int opcao = lerInt("Escolha uma opção: ");
+        System.out.println("\n  Digite as opções separadas por vírgula.");
+        System.out.println("  Exemplo: 1, 2");
 
-            switch (opcao) {
-                case 1 -> doacao.setTipoAlimento(
-                        lerObrigatorio("Novo tipo de alimento: ",
-                                "O tipo de alimento")
-                );
+        String[] opcoes = lerTexto(
+                prompt("Opções: ")
+        ).split(",");
 
-                case 2 -> doacao.setQuantidadeKg(
-                        lerQuantidadeKg("Nova quantidade (kg): ")
-                );
+        boolean alimento = false;
+        boolean quantidade = false;
+        boolean validade = false;
 
-                case 3 -> doacao.setValidade(
-                        lerData("Nova validade (dd/MM/aaaa): ")
-                );
-
-                case 0 -> {
-                    carregar("Atualizando");
-                    doacaoDAO.atualizar(doacao);
-                    sucesso("Doação atualizada com sucesso!");
-                    return;
-                }
-
-                default -> aviso("Opção inválida.");
+        for (String opcao : opcoes) {
+            switch (opcao.trim()) {
+                case "1" -> alimento = true;
+                case "2" -> quantidade = true;
+                case "3" -> validade = true;
+                default -> aviso("Opção ignorada: " + opcao.trim());
             }
         }
-    }
 
+        if (!alimento && !quantidade && !validade) {
+            aviso("Nenhum campo válido foi selecionado.");
+            return;
+        }
+
+        System.out.println("\n  Informe os novos dados:");
+
+        if (alimento) {
+            doacao.setTipoAlimento(
+                    lerObrigatorio("Novo tipo de alimento: ",
+                            "O tipo de alimento")
+            );
+        }
+
+        if (quantidade) {
+            doacao.setQuantidadeKg(
+                    lerQuantidadeKg("Nova quantidade (kg): ")
+            );
+        }
+
+        if (validade) {
+            doacao.setValidade(
+                    lerData("Nova validade (dd/MM/aaaa): ")
+            );
+        }
+
+        carregar("Atualizando");
+        doacaoDAO.atualizar(doacao);
+
+        sucesso("Doação atualizada com sucesso!");
+    }
 
     private static void distribuirDoacao() throws SQLException {
         titulo("Distribuir doação");
@@ -379,18 +400,19 @@ public class Main {
         sucesso("Doação marcada como distribuída.");
     }
 
+
     // ---------- Apresentação ----------
 
     private static void boasVindas() {
         limparTela();
         System.out.println();
-        System.out.println(CIANO + NEGRITO);
-        System.out.println("   ____        _      _   _     ____   ___  ");
-        System.out.println("  |  ()  \\    / \\    | \\ | |  / ___| /  _  \\ ");
-        System.out.println("  |   _  /   / _ \\   |  \\| | | |     | | | |");
-        System.out.println("  |  ()  \\  / ___ \\  | |\\  | | |___  | |_| |");
-        System.out.println("  |______/ /_/   \\_\\ | _|\\_|  \\____|  \\___/ ");
-        System.out.println(RESET + AMARELO + "          D E   A L I M E N T O S" + RESET);
+        System.out.println(AZUL + NEGRITO);
+        System.out.println("          ____        _      _   _     ____   ___  ");
+        System.out.println("         |  ()  \\    / \\    | \\ | |  / ___| /  _  \\ ");
+        System.out.println("         |   _  /   / _ \\   |  \\| | | |     | | | |");
+        System.out.println("         |  ()  \\  / ___ \\  | |\\  | | |___  | |_| |");
+        System.out.println("         |______/ /_/   \\_\\ | _|\\_|  \\____|  \\___/ ");
+        System.out.println(RESET + AMARELO + "                  D E   A L I M E N T O S" + RESET);
         System.out.println();
     }
 
@@ -403,9 +425,23 @@ public class Main {
         List<String[]> linhas = new ArrayList<>();
         for (DoacaoAlimento d : doacoes) {
             long dias = ChronoUnit.DAYS.between(hoje, d.getValidade());
-            String cor = dias < 0 ? VERMELHO : dias <= DoacaoAlimento.DIAS_ALERTA_VENCIMENTO ? AMARELO : VERDE;
-            String situacao = DoacaoAlimento.DISPONIVEL.equals(d.getSituacao())
-                    ? VERDE + d.getSituacao() + RESET : CINZA + d.getSituacao() + RESET;
+            String cor;
+
+            if (dias < 0) {
+                cor = VERMELHO;
+            } else if (dias <= DoacaoAlimento.DIAS_ALERTA_VENCIMENTO) {
+                cor = AMARELO;
+            } else {
+                cor = VERDE;
+            }
+
+            String situacao;
+
+            if (DoacaoAlimento.DISPONIVEL.equals(d.getSituacao())) {
+                situacao = VERDE + d.getSituacao() + RESET;
+            } else {
+                situacao = CINZA + d.getSituacao() + RESET;
+            }
             linhas.add(new String[]{
                     String.valueOf(d.getId()),
                     d.getTipoAlimento(),
@@ -419,37 +455,43 @@ public class Main {
                 + AMARELO + "vence em breve " + RESET + VERMELHO + "vencido" + RESET);
     }
 
-    /** Desenha uma tabela com bordas; as células podem conter códigos de cor. */
+
+    // ---------- Desenho Tabela ----------
+
     private static void tabela(String[] cabecalho, int[] larguras, List<String[]> linhas) {
-        System.out.println(CIANO + "  " + bordaTabela('┌', '┬', '┐', larguras) + RESET);
-        StringBuilder sb = new StringBuilder("  " + CIANO + "│" + RESET);
+        System.out.println(AZUL + "  " + bordaTabela('┌', '┬', '┐', larguras) + RESET);
+        StringBuilder sb = new StringBuilder("  " + AZUL + "│" + RESET);
         for (int i = 0; i < cabecalho.length; i++) {
             sb.append(" ").append(NEGRITO).append(ajustar(cabecalho[i], larguras[i])).append(RESET)
-                    .append(" ").append(CIANO).append("│").append(RESET);
+                    .append(" ").append(AZUL).append("│").append(RESET);
         }
         System.out.println(sb);
-        System.out.println(CIANO + "  " + bordaTabela('├', '┼', '┤', larguras) + RESET);
+        System.out.println(AZUL + "  " + bordaTabela('├', '┼', '┤', larguras) + RESET);
         for (String[] linha : linhas) {
-            StringBuilder l = new StringBuilder("  " + CIANO + "│" + RESET);
+            StringBuilder l = new StringBuilder("  " + AZUL + "│" + RESET);
             for (int i = 0; i < linha.length; i++) {
                 l.append(" ").append(ajustar(linha[i], larguras[i])).append(" ")
-                        .append(CIANO).append("│").append(RESET);
+                        .append(AZUL).append("│").append(RESET);
             }
             System.out.println(l);
         }
-        System.out.println(CIANO + "  " + bordaTabela('└', '┴', '┘', larguras) + RESET);
+        System.out.println(AZUL + "  " + bordaTabela('└', '┴', '┘', larguras) + RESET);
     }
 
     private static String bordaTabela(char esq, char meio, char dir, int[] larguras) {
         StringBuilder sb = new StringBuilder().append(esq);
         for (int i = 0; i < larguras.length; i++) {
             sb.append("─".repeat(larguras[i] + 2));
-            sb.append(i < larguras.length - 1 ? meio : dir);
+
+            if (i < larguras.length - 1) {
+                sb.append(meio);
+            } else {
+                sb.append(dir);
+            }
         }
         return sb.toString();
     }
 
-    /** Corta ou completa com espaços, ignorando códigos de cor no cálculo. */
     private static String ajustar(String texto, int largura) {
         if (texto == null) {
             texto = "";
@@ -468,13 +510,13 @@ public class Main {
 
     private static void titulo(String texto) {
         System.out.println();
-        System.out.println(CIANO + NEGRITO + "  ▌ " + texto.toUpperCase() + RESET);
-        System.out.println(CIANO + "  " + "─".repeat(LARGURA - 4) + RESET);
+        System.out.println(AZUL + NEGRITO + "  ▌ " + texto.toUpperCase() + RESET);
+        System.out.println(AZUL + "  " + "─".repeat(LARGURA - 4) + RESET);
         System.out.println();
     }
 
     private static void secao(String nome) {
-        System.out.println(CIANO + "╟" + "─".repeat(LARGURA) + "╢" + RESET);
+        System.out.println(AZUL + "╟" + "─".repeat(LARGURA) + "╢" + RESET);
         System.out.println(borda(AMARELO + NEGRITO + nome + RESET));
     }
 
@@ -484,23 +526,16 @@ public class Main {
 
     private static String borda(String conteudo) {
         int espacos = LARGURA - 2 - semCor(conteudo).length();
-        return CIANO + "║" + RESET + "  " + conteudo + " ".repeat(Math.max(0, espacos))
-                + CIANO + "║" + RESET;
+        return AZUL + "║" + RESET + "  " + conteudo + " ".repeat(Math.max(0, espacos))
+                + AZUL + "║" + RESET;
     }
 
-    private static String linhaCentro(String conteudo) {
-        int visivel = semCor(conteudo).length();
-        int esq = (LARGURA - visivel) / 2;
-        int dir = LARGURA - visivel - esq;
-        return CIANO + "║" + RESET + " ".repeat(esq) + conteudo + " ".repeat(dir) + CIANO + "║" + RESET;
-    }
-
-    // ---------- Mensagens e animações ----------
+    // ---------- Mensagens/Animações ----------
 
     private static void sucesso(String msg) { System.out.println(VERDE + "  ✔ " + msg + RESET); }
     private static void aviso(String msg)   { System.out.println(AMARELO + "  ⚠ " + msg + RESET); }
     private static void erro(String msg)    { System.out.println(VERMELHO + "  ✖ " + msg + RESET); }
-    private static void info(String msg)    { System.out.println(CIANO + "  ! " + RESET + msg); }
+    private static void info(String msg)    { System.out.println(AZUL + "  ! " + RESET + msg); }
 
     private static void limparTela() {
         System.out.print("\u001B[H\u001B[2J");
@@ -515,49 +550,37 @@ public class Main {
 
     private static void dormir(int ms) {
         try {
-            Thread.sleep(ms);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    /** Spinner rápido para dar feedback de que algo está acontecendo. */
     private static void carregar(String msg) {
         String[] quadros = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
         for (int i = 0; i < 12; i++) {
-            System.out.print("\r" + CIANO + "  " + quadros[i % quadros.length] + RESET + " " + msg + "...");
+            System.out.print("\r" + AZUL + "  " + quadros[i % quadros.length] + RESET + " " + msg + "...");
             System.out.flush();
-            dormir(50);
         }
         System.out.print("\r" + " ".repeat(LARGURA) + "\r");
     }
 
-    private static void barraProgresso(String msg) {
-        int total = 30;
-        for (int i = 0; i <= total; i++) {
-            System.out.print("\r  " + msg + " " + CIANO + "█".repeat(i) + CINZA + "░".repeat(total - i)
-                    + RESET + " " + (i * 100 / total) + "%");
-            System.out.flush();
-            dormir(25);
-        }
-        System.out.println();
-        dormir(300);
-    }
 
     // ---------- Entrada de dados ----------
 
     private static boolean confirmar(String pergunta) {
         while (true) {
-            String r = lerTexto(AMARELO + "  ? " + RESET + pergunta + " (S/N): ").trim().toLowerCase();
-            if (r.equals("s") || r.equals("sim")) {
+            String resposta = lerTexto(AMARELO + "  ? " + RESET + pergunta + " (S/N): ").trim().toLowerCase();
+            if (resposta.equals("s") || resposta.equals("sim")) {
                 return true;
             }
-            if (r.equals("n") || r.equals("nao") || r.equals("não")) {
+            if (resposta.equals("n") || resposta.equals("nao") || resposta.equals("não")) {
                 return false;
             }
             aviso("Responda com S ou N.");
         }
     }
+
 
     private static Doador buscarDoadorOuAvisar(int id) throws SQLException {
         Doador doador = doadorDAO.buscarPorId(id);
@@ -566,6 +589,9 @@ public class Main {
         }
         return doador;
     }
+
+
+    // ---------- Leituras ----------
 
     private static String lerTexto(String mensagem) {
         System.out.print(mensagem);
@@ -580,7 +606,7 @@ public class Main {
     }
 
     private static String prompt(String mensagem) {
-        return CIANO + "  ❯ " + RESET + mensagem;
+        return AZUL + "  ❯ " + RESET + mensagem;
     }
 
     private static String lerTipoDoador() {
@@ -596,7 +622,6 @@ public class Main {
         }
     }
 
-    /** Repete a pergunta até o usuário informar um valor não vazio. */
     private static String lerObrigatorio(String mensagem, String campo) {
         while (true) {
             String valor = lerTexto(prompt(mensagem)).trim();
@@ -607,7 +632,6 @@ public class Main {
         }
     }
 
-    /** Repete a pergunta até a quantidade ser maior que zero. */
     private static double lerQuantidadeKg(String mensagem) {
         while (true) {
             double valor = lerDouble(mensagem);
@@ -619,7 +643,14 @@ public class Main {
     }
 
     private static int lerInt(String mensagem) {
-        String texto = mensagem.contains("❯") ? mensagem : prompt(mensagem);
+        String texto;
+
+        if (mensagem.contains("❯")) {
+            texto = mensagem;
+        } else {
+            texto = prompt(mensagem);
+        }
+
         while (true) {
             try {
                 return Integer.parseInt(lerTexto(texto).trim());
